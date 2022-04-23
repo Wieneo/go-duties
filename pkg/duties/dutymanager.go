@@ -24,10 +24,21 @@ func (dm *DutyManager) Execute() {
 		fmt.Println(tl.tasks[i].dependencies)
 	}
 
+	taskToPreflight := tasksInState(tl, TaskStatePending)
+	for i := range taskToPreflight {
+		task := taskToPreflight[i]
+
+		if task.preflight != nil {
+			taskToPreflight[i].runPreflight(dm.TaskData)
+		} else {
+			task.status.State = TaskStatePreflightSucceeded
+		}
+	}
+
 	completed := false
 	for !completed {
 
-		taskToBeDone := tasksInState(tl, TaskStatePending)
+		taskToBeDone := tasksInState(tl, TaskStatePreflightSucceeded)
 		if len(taskToBeDone) > 0 {
 			for i := range taskToBeDone {
 				task := taskToBeDone[i]
@@ -38,7 +49,7 @@ func (dm *DutyManager) Execute() {
 						allDependenciesCompleted = false
 					}
 
-					if k.status.State == TaskStateFailed {
+					if k.status.State == TaskStateFailed || k.status.State == TaskStatePreFlightFailed {
 						task.status.State = TaskStateDependencyFailed
 					}
 				}

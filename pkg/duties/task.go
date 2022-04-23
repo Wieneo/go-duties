@@ -10,14 +10,17 @@ type Task struct {
 	taskList     *TaskList
 	dependencies []*Task
 	call         func(data interface{}) error
+	preflight    func(data interface{}) error
 	status       TaskStatus
 }
 
 type TaskStatus struct {
-	StartTime time.Time
-	EndTime   time.Time
-	Error     error
-	State     TaskState
+	PreflightStartTime time.Time
+	PrefLightEndTime   time.Time
+	StartTime          time.Time
+	EndTime            time.Time
+	Error              error
+	State              TaskState
 }
 
 type TaskState int
@@ -25,10 +28,13 @@ type TaskState int
 const (
 	TaskStateCreated TaskState = iota
 	TaskStatePending
+	TaskStateInPreflight
+	TaskStatePreflightSucceeded
 	TaskStateRunning
 	TaskStateSucceded
 	TaskStateFailed
 	TaskStateDependencyFailed
+	TaskStatePreFlightFailed
 )
 
 func (t *Task) GetName() string {
@@ -66,6 +72,19 @@ func (t *Task) AddDependency(dep *Task) error {
 
 	t.dependencies = append(t.dependencies, dep)
 	return nil
+}
+
+func (t *Task) runPreflight(data interface{}) {
+	t.status.PreflightStartTime = time.Now()
+	t.status.State = TaskStateInPreflight
+
+	if err := t.preflight(data); err != nil {
+		t.status.State = TaskStatePreFlightFailed
+		t.status.Error = err
+	} else {
+		t.status.State = TaskStatePreflightSucceeded
+	}
+	t.status.PrefLightEndTime = time.Now()
 }
 
 func (t *Task) execute(data interface{}) {
