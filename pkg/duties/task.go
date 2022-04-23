@@ -1,25 +1,42 @@
 package duties
 
-import "strings"
+import (
+	"strings"
+	"time"
+)
 
 type Task struct {
 	name         string
 	taskList     *TaskList
 	dependencies []*Task
 	call         func(data interface{}) error
-	status       *TaskStatus
+	status       TaskStatus
 }
 
 type TaskStatus struct {
-	Error error
+	StartTime time.Time
+	EndTime   time.Time
+	Error     error
+	State     TaskState
 }
+
+type TaskState int
+
+const (
+	TaskStateCreated TaskState = iota
+	TaskStatePending
+	TaskStateRunning
+	TaskStateSucceded
+	TaskStateFailed
+	TaskStateDependencyFailed
+)
 
 func (t *Task) GetName() string {
 	return t.name
 }
 
 func (t *Task) GetStatus() TaskStatus {
-	return *t.status
+	return t.status
 }
 
 func (t *Task) AddDependency(dep *Task) error {
@@ -49,4 +66,17 @@ func (t *Task) AddDependency(dep *Task) error {
 
 	t.dependencies = append(t.dependencies, dep)
 	return nil
+}
+
+func (t *Task) execute(data interface{}) {
+	t.status.StartTime = time.Now()
+	t.status.State = TaskStateRunning
+
+	if err := t.call(data); err != nil {
+		t.status.State = TaskStateFailed
+		t.status.Error = err
+	} else {
+		t.status.State = TaskStateSucceded
+	}
+	t.status.EndTime = time.Now()
 }

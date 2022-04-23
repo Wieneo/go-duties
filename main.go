@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Wieneo/go-duties/v2/pkg/duties"
@@ -9,19 +10,22 @@ import (
 func main() {
 	manager := duties.NewDutyManager()
 
-	task, err := manager.TaskList.AddTask("test", nil, test)
+	task, err := manager.TaskList.AddTask("test", test)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	depTask, err := manager.TaskList.GetTask("test")
+	task2, err := manager.TaskList.AddTask("test2", test)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	if err := task.AddDependency(depTask); err != nil {
-		fmt.Println(err)
-	}
+	task.AddDependency(task2)
+
+	manager.Execute()
+
+	fmt.Println(task.GetStatus().State)
+	fmt.Println(task2.GetStatus().State)
 }
 
 var debug = 1
@@ -29,5 +33,5 @@ var debug = 1
 func test(data interface{}) error {
 	fmt.Printf("test called\n")
 	fmt.Printf("Debug: %d\n", debug)
-	return nil
+	return errors.New("oof")
 }
