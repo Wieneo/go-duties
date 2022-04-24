@@ -85,6 +85,7 @@ func (t *Task) AddDependency(dep *Task) error {
 }
 
 func (t *Task) runPreflight(data interface{}) {
+	//Lock task object as this function will be a seperate go-routine most of the time
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -105,6 +106,7 @@ func (t *Task) runPreflight(data interface{}) {
 }
 
 func (t *Task) runCall(data interface{}) {
+	//Lock task object as this function will be a seperate go-routine most of the time
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
