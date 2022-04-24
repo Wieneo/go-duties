@@ -55,15 +55,29 @@ func (t *Task) setStatus(status TaskState) {
 	}
 }
 
-func (t *Task) AddDependency(dep *Task) error {
+func (t *Task) AddDependencies(taskNames []string) error {
+	for _, k := range taskNames {
+		if err := t.AddDependency(k); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (t *Task) AddDependency(taskName string) error {
+	//Don't update dependencies after execution was started
+	if t.status.State != TaskStateCreated {
+		return ErrDependencyChangeForbidden
+	}
+
 	//Can't have ourselfs as dependency
-	if strings.EqualFold(t.name, dep.name) {
+	if strings.EqualFold(t.name, taskName) {
 		return ErrDependencySelfReference
 	}
 
 	//Check if its already an dependency
 	for _, k := range t.dependencies {
-		if strings.EqualFold(k.name, dep.name) {
+		if strings.EqualFold(k.name, taskName) {
 			return ErrDuplicateDependency
 		}
 	}
@@ -71,7 +85,7 @@ func (t *Task) AddDependency(dep *Task) error {
 	//Check if tasks exists in our tasklist
 	found := false
 	for _, k := range t.taskList.Tasks {
-		if strings.EqualFold(k.name, dep.name) {
+		if strings.EqualFold(k.name, taskName) {
 			found = true
 		}
 	}
@@ -80,7 +94,12 @@ func (t *Task) AddDependency(dep *Task) error {
 		return ErrTaskNotFound
 	}
 
-	t.dependencies = append(t.dependencies, dep)
+	depTask, err := t.taskList.GetTask(taskName)
+	if err != nil {
+		return err
+	}
+
+	t.dependencies = append(t.dependencies, depTask)
 	return nil
 }
 

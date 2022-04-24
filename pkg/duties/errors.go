@@ -3,6 +3,7 @@ package duties
 import "errors"
 
 var ErrDuplicateDependency error = errors.New("duplicate dependency")
+var ErrDependencyChangeForbidden error = errors.New("dependencies can't be modified after execution was started")
 var ErrDuplicateTask error = errors.New("task name needs to be unique")
 var ErrEmptyTaskName error = errors.New("task name may not be empty")
 var ErrNoCallFunction error = errors.New("task must implement a call function")
