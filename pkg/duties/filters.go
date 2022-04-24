@@ -9,3 +9,11 @@ func tasksInState(tl *TaskList, state TaskState) []*Task {
 	}
 	return tasks
 }
+
+func tasksDoingSomething(tl *TaskList) []*Task {
+	return append(tasksInState(tl, TaskStateInPreflight), tasksInState(tl, TaskStateRunning)...)
+}
+
+func tasksWaiting(tl *TaskList) []*Task {
+	return append(tasksInState(tl, TaskStatePending), tasksInState(tl, TaskStatePreflightSucceeded)...)
+}

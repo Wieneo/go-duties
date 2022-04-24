@@ -2,15 +2,18 @@ package duties
 
 import (
 	"strings"
+	"sync"
 	"time"
 )
 
 type Task struct {
+	mu           sync.Mutex
 	name         string
 	taskList     *TaskList
 	dependencies []*Task
 	call         func(data interface{}) error
 	preflight    func(data interface{}) error
+	data         interface{}
 	status       TaskStatus
 }
 
@@ -23,18 +26,18 @@ type TaskStatus struct {
 	State              TaskState
 }
 
-type TaskState int
+type TaskState string
 
 const (
-	TaskStateCreated TaskState = iota
-	TaskStatePending
-	TaskStateInPreflight
-	TaskStatePreflightSucceeded
-	TaskStateRunning
-	TaskStateSucceded
-	TaskStateFailed
-	TaskStateDependencyFailed
-	TaskStatePreFlightFailed
+	TaskStateCreated            TaskState = "Created"
+	TaskStatePending            TaskState = "Pending"
+	TaskStateInPreflight        TaskState = "InPreflight"
+	TaskStatePreflightSucceeded TaskState = "PreflightSucceeded"
+	TaskStateRunning            TaskState = "Running"
+	TaskStateSucceded           TaskState = "Succeeded"
+	TaskStateFailed             TaskState = "Failed"
+	TaskStateDependencyFailed   TaskState = "DependencyFailed"
+	TaskStatePreFlightFailed    TaskState = "PreflightFailed"
 )
 
 func (t *Task) GetName() string {
@@ -45,16 +48,23 @@ func (t *Task) GetStatus() TaskStatus {
 	return t.status
 }
 
+func (t *Task) setStatus(status TaskState) {
+	if t.status.State != status {
+		t.status.State = status
+		logInfo(`Task "%s" is now in state: %s`, t.name, status)
+	}
+}
+
 func (t *Task) AddDependency(dep *Task) error {
 	//Can't have ourselfs as dependency
 	if strings.EqualFold(t.name, dep.name) {
-		return DependencySelfReference
+		return ErrDependencySelfReference
 	}
 
 	//Check if its already an dependency
 	for _, k := range t.dependencies {
 		if strings.EqualFold(k.name, dep.name) {
-			return DuplicateDependency
+			return ErrDuplicateDependency
 		}
 	}
 
@@ -67,7 +77,7 @@ func (t *Task) AddDependency(dep *Task) error {
 	}
 
 	if !found {
-		return TaskNotFound
+		return ErrTaskNotFound
 	}
 
 	t.dependencies = append(t.dependencies, dep)
@@ -75,27 +85,37 @@ func (t *Task) AddDependency(dep *Task) error {
 }
 
 func (t *Task) runPreflight(data interface{}) {
-	t.status.PreflightStartTime = time.Now()
-	t.status.State = TaskStateInPreflight
+	t.mu.Lock()
+	defer t.mu.Unlock()
 
-	if err := t.preflight(data); err != nil {
-		t.status.State = TaskStatePreFlightFailed
-		t.status.Error = err
+	t.status.PreflightStartTime = time.Now()
+	t.setStatus(TaskStateInPreflight)
+
+	if t.preflight != nil {
+		if err := t.preflight(data); err != nil {
+			t.setStatus(TaskStatePreFlightFailed)
+			t.status.Error = err
+		} else {
+			t.setStatus(TaskStatePreflightSucceeded)
+		}
 	} else {
-		t.status.State = TaskStatePreflightSucceeded
+		t.setStatus(TaskStatePreflightSucceeded)
 	}
 	t.status.PrefLightEndTime = time.Now()
 }
 
-func (t *Task) execute(data interface{}) {
+func (t *Task) runCall(data interface{}) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	t.status.StartTime = time.Now()
-	t.status.State = TaskStateRunning
+	t.setStatus(TaskStateRunning)
 
 	if err := t.call(data); err != nil {
-		t.status.State = TaskStateFailed
+		t.setStatus(TaskStateFailed)
 		t.status.Error = err
 	} else {
-		t.status.State = TaskStateSucceded
+		t.setStatus(TaskStateSucceded)
 	}
 	t.status.EndTime = time.Now()
 }

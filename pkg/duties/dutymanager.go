@@ -1,10 +1,11 @@
 package duties
 
-import "fmt"
+import (
+	"time"
+)
 
 type DutyManager struct {
 	TaskList TaskList
-	TaskData interface{}
 }
 
 func NewDutyManager() DutyManager {
@@ -15,31 +16,39 @@ func NewDutyManager() DutyManager {
 	}
 }
 
-func (dm *DutyManager) Execute() {
+func (dm *DutyManager) Execute() error {
+	//Disable logging for dry-run
+	loggingDisabled = true
+
+	err := dm.runTasks(true)
+
+	//Re-enable logging after dry run and before maybe returning
+	loggingDisabled = false
+
+	if err != nil {
+		return err
+	}
+
+	return dm.runTasks(false)
+}
+
+func (dm *DutyManager) runTasks(dryRun bool) error {
 	tl := &dm.TaskList
 
 	//Set all tasks to pending
 	for i := range tl.tasks {
-		tl.tasks[i].status.State = TaskStatePending
-		fmt.Println(tl.tasks[i].dependencies)
-	}
-
-	taskToPreflight := tasksInState(tl, TaskStatePending)
-	for i := range taskToPreflight {
-		task := taskToPreflight[i]
-
-		if task.preflight != nil {
-			taskToPreflight[i].runPreflight(dm.TaskData)
-		} else {
-			task.status.State = TaskStatePreflightSucceeded
-		}
+		tl.tasks[i].setStatus(TaskStatePending)
 	}
 
 	completed := false
 	for !completed {
+		loopStart := time.Now()
 
-		taskToBeDone := tasksInState(tl, TaskStatePreflightSucceeded)
+		taskToBeDone := tasksWaiting(tl)
 		if len(taskToBeDone) > 0 {
+			tasksRunInThisWave := 0
+			tasksDoingSomething := len(tasksDoingSomething(tl))
+
 			for i := range taskToBeDone {
 				task := taskToBeDone[i]
 
@@ -50,16 +59,48 @@ func (dm *DutyManager) Execute() {
 					}
 
 					if k.status.State == TaskStateFailed || k.status.State == TaskStatePreFlightFailed {
-						task.status.State = TaskStateDependencyFailed
+						task.setStatus(TaskStateDependencyFailed)
 					}
 				}
 
 				if allDependenciesCompleted {
-					task.execute(dm.TaskData)
+					if !dryRun {
+						if task.GetStatus().State == TaskStatePending {
+							task.setStatus(TaskStateInPreflight)
+							go task.runPreflight(task.data)
+						}
+
+						if task.GetStatus().State == TaskStatePreflightSucceeded {
+							task.setStatus(TaskStateRunning)
+							go task.runCall(task.data)
+						}
+					} else {
+						task.setStatus(TaskStateSucceded)
+					}
+
+					tasksRunInThisWave++
 				}
 			}
+
+			//Check if we are stuck (ring dependencies or something like that)
+			if tasksRunInThisWave == 0 && tasksDoingSomething == 0 {
+				logError("Executing failed because of dependency loop", ErrDependencyLoop)
+				return ErrDependencyLoop
+			}
+
 		} else {
-			completed = true
+			//Check if there as still tasks running
+			if len(tasksDoingSomething(tl)) == 0 {
+				completed = true
+			}
+		}
+
+		//Throttle loop execution
+		executionDuration := time.Since(loopStart)
+		if executionDuration < 1*time.Millisecond {
+			time.Sleep(1*time.Millisecond - executionDuration)
 		}
 	}
+
+	return nil
 }

@@ -16,21 +16,21 @@ func (tl *TaskList) GetTask(name string) (*Task, error) {
 			return tl.tasks[i], nil
 		}
 	}
-	return nil, TaskNotFound
+	return nil, ErrTaskNotFound
 }
 
-func (tl *TaskList) AddTask(name string, call func(data interface{}) error) (*Task, error) {
+func (tl *TaskList) AddTask(name string, call func(data interface{}) error, preflight func(data interface{}) error, data interface{}) (*Task, error) {
 	if utils.IsEmpty(name) {
-		return nil, EmptyTaskName
+		return nil, ErrEmptyTaskName
 	}
 
 	if call == nil {
-		return nil, NoCallFunction
+		return nil, ErrNoCallFunction
 	}
 
 	for _, k := range tl.tasks {
 		if strings.EqualFold(k.name, name) {
-			return nil, DuplicateTask
+			return nil, ErrDuplicateTask
 		}
 	}
 
@@ -41,6 +41,11 @@ func (tl *TaskList) AddTask(name string, call func(data interface{}) error) (*Ta
 		dependencies: initDependencies,
 		call:         call,
 		taskList:     tl,
+		preflight:    preflight,
+		status: TaskStatus{
+			State: TaskStateCreated,
+		},
+		data: data,
 	}
 
 	tl.tasks = append(tl.tasks, &newTask)
