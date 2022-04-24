@@ -7,13 +7,13 @@ import (
 )
 
 type TaskList struct {
-	tasks []*Task
+	Tasks []*Task
 }
 
 func (tl *TaskList) GetTask(name string) (*Task, error) {
-	for i, k := range tl.tasks {
+	for i, k := range tl.Tasks {
 		if strings.EqualFold(k.name, name) {
-			return tl.tasks[i], nil
+			return tl.Tasks[i], nil
 		}
 	}
 	return nil, ErrTaskNotFound
@@ -28,7 +28,7 @@ func (tl *TaskList) AddTask(name string, call func(data interface{}) error, pref
 		return nil, ErrNoCallFunction
 	}
 
-	for _, k := range tl.tasks {
+	for _, k := range tl.Tasks {
 		if strings.EqualFold(k.name, name) {
 			return nil, ErrDuplicateTask
 		}
@@ -48,6 +48,6 @@ func (tl *TaskList) AddTask(name string, call func(data interface{}) error, pref
 		data: data,
 	}
 
-	tl.tasks = append(tl.tasks, &newTask)
+	tl.Tasks = append(tl.Tasks, &newTask)
 	return tl.GetTask(name)
 }

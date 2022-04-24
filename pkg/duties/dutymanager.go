@@ -12,9 +12,26 @@ type DutyManager struct {
 func NewDutyManager() DutyManager {
 	return DutyManager{
 		TaskList: TaskList{
-			tasks: make([]*Task, 0),
+			Tasks: make([]*Task, 0),
 		},
 	}
+}
+
+func (dm *DutyManager) PendingTasks() []*Task {
+	return tasksInState(&dm.TaskList, TaskStatePending)
+}
+
+func (dm *DutyManager) RunningTasks() []*Task {
+	return tasksDoingSomething(&dm.TaskList)
+}
+
+func (dm *DutyManager) SuccededTasks() []*Task {
+	return tasksInState(&dm.TaskList, TaskStateSucceded)
+}
+
+func (dm *DutyManager) FailedTasks() []*Task {
+	tasks := append(tasksInState(&dm.TaskList, TaskStatePreFlightFailed), tasksInState(&dm.TaskList, TaskStateFailed)...)
+	return append(tasks, tasksInState(&dm.TaskList, TaskStateDependencyFailed)...)
 }
 
 //Execute starts the execution of all defined tasks
@@ -40,8 +57,8 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 	tl := &dm.TaskList
 
 	//Set all tasks to pending
-	for i := range tl.tasks {
-		tl.tasks[i].setStatus(TaskStatePending)
+	for i := range tl.Tasks {
+		tl.Tasks[i].setStatus(TaskStatePending)
 	}
 
 	completed := false

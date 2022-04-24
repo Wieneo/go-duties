@@ -70,7 +70,7 @@ func (t *Task) AddDependency(dep *Task) error {
 
 	//Check if tasks exists in our tasklist
 	found := false
-	for _, k := range t.taskList.tasks {
+	for _, k := range t.taskList.Tasks {
 		if strings.EqualFold(k.name, dep.name) {
 			found = true
 		}
