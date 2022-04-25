@@ -89,6 +89,7 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 					//If one of the tasks dependencies failed, we can't execute this task
 					if k.status.State == TaskStateFailed || k.status.State == TaskStatePreFlightFailed {
 						task.setStatus(TaskStateDependencyFailed)
+						task.status.Error = ErrDependencyFailed
 					}
 				}
 
