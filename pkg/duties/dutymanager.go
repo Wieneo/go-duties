@@ -92,10 +92,6 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 					}
 				}
 
-				if task.status.State == TaskStateDependencyFailed {
-					continue
-				}
-
 				if allDependenciesCompleted {
 					//Don't do anything on a dry run -> Just set the task's state to succeded
 					if !dryRun {
@@ -114,6 +110,10 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 						task.setStatus(TaskStateSucceded)
 					}
 
+					tasksRunInThisWave++
+
+				} else if task.status.State == TaskStateDependencyFailed {
+					//Don't trigger dependency loop detection
 					tasksRunInThisWave++
 				}
 			}
