@@ -81,7 +81,6 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 				//allDependenciesCompleted gets set to false if a dependency hasn't finished execution
 				//We will retry execution of this tasks next iteration
 				allDependenciesCompleted := true
-				taskCanBeSkipped := false
 				for _, k := range task.dependencies {
 					if k.status.State != TaskStateSucceded {
 						allDependenciesCompleted = false
@@ -90,11 +89,10 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 					//If one of the tasks dependencies failed, we can't execute this task
 					if k.status.State == TaskStateFailed || k.status.State == TaskStatePreFlightFailed {
 						task.setStatus(TaskStateDependencyFailed)
-						taskCanBeSkipped = true
 					}
 				}
 
-				if taskCanBeSkipped {
+				if task.status.State == TaskStateDependencyFailed {
 					continue
 				}
 
