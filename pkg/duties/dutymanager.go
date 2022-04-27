@@ -90,6 +90,8 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 					if k.status.State == TaskStateFailed || k.status.State == TaskStatePreFlightFailed {
 						task.setStatus(TaskStateDependencyFailed)
 						task.status.Error = ErrDependencyFailed
+						tasksRunInThisWave++
+						break
 					}
 				}
 
@@ -113,9 +115,6 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 
 					tasksRunInThisWave++
 
-				} else if task.status.State == TaskStateDependencyFailed {
-					//Don't trigger dependency loop detection
-					tasksRunInThisWave++
 				}
 			}
 
