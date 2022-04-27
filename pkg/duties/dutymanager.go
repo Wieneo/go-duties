@@ -71,9 +71,6 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 		if len(taskToBeDone) > 0 {
 			//tasksRunInThisWave gets incremented for every task that enters preflight or execution during this iteration
 			tasksRunInThisWave := 0
-			//tasksDoingSomething indicates how many tasks are currently running in the background
-			//This needs to be done before we increment tasksRunInThisWave in order to ensure a task doesn't finish in the delta between increment and checking if tasks are running
-			tasksDoingSomething := len(tasksDoingSomething(tl))
 
 			for i := range taskToBeDone {
 				task := taskToBeDone[i]
@@ -90,7 +87,6 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 					if k.status.State == TaskStateFailed || k.status.State == TaskStatePreFlightFailed {
 						task.setStatus(TaskStateDependencyFailed)
 						task.status.Error = ErrDependencyFailed
-						tasksRunInThisWave++
 						break
 					}
 				}
@@ -116,12 +112,6 @@ func (dm *DutyManager) runTasks(dryRun bool) error {
 					tasksRunInThisWave++
 
 				}
-			}
-
-			//Check if we are stuck (loop dependencies or something like that)
-			if tasksRunInThisWave == 0 && tasksDoingSomething == 0 {
-				logError("Executing failed because of dependency loop", ErrDependencyLoop)
-				return ErrDependencyLoop
 			}
 
 		} else {
